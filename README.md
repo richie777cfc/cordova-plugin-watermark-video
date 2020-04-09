@@ -23,7 +23,8 @@ WatermarkVideo.addWatermarkToVideo(
 	videoDest,
 	waterMarkImageSrc,
 	top,
-	left
+	left,
+	progress
 );
 ```
 
@@ -35,7 +36,8 @@ window.Watermark.addWatermarkToVideo(
 	videoDest,
 	waterMarkImageSrc,
 	top,
-	left
+	left,
+	progress
 );
 ```
 
