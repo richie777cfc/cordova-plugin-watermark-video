@@ -40,6 +40,13 @@ window.Watermark.addWatermarkToVideo(
 	progress
 );
 ```
+Example:
+
+waterMark(mediaFile.fullPath, "video.mp4", "path_to_image", 0, 0, checkProg);
+
+function checkProg(progressval) {
+  console.log("Progress %: " + progressval);
+}
 
 ## Response Promise<{videoDest: 'URI'}>
 
