@@ -23,7 +23,7 @@
         NSString* videoSrc = [options objectForKey:@"videoSrc"];
         NSString* videoDest = [options objectForKey:@"videoDest"];
         NSString* waterMarkImageSrc = [options objectForKey:@"waterMarkImageSrc"];
-        CGFloat top = [[options objectForKey:@"top"] doubleValue];
+        CGFloat bottom = [[options objectForKey:@"top"] doubleValue];
         CGFloat left = [[options objectForKey:@"left"] doubleValue];
 
         NSString *filePath = videoSrc;
@@ -46,6 +46,8 @@
         
         [compositionVideoTrack setPreferredTransform:[[[videoAsset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0] preferredTransform]];
         
+     
+
         CGSize videoSize = [clipVideoTrack naturalSize];
         
         
@@ -55,7 +57,8 @@
         
         CALayer *aLayer = [CALayer layer];
         aLayer.contents = (id)image.CGImage;
-        aLayer.frame = CGRectMake(top, (videoSize.height - image.size.height) + left, image.size.width, image.size.height);
+        // aLayer.frame = CGRectMake(bottom, (videoSize.height - image.size.height) + left, image.size.width, image.size.height);
+        aLayer.frame = CGRectMake(bottom, left, videoSize.width, image.size.height);
         CALayer *parentLayer = [CALayer layer];
         CALayer *videoLayer = [CALayer layer];
         parentLayer.frame = CGRectMake(0, 0, videoSize.width, videoSize.height);
@@ -73,8 +76,53 @@
         instruction.timeRange = CMTimeRangeMake(kCMTimeZero, [mixComposition duration]);
         AVAssetTrack *videoTrack = [[mixComposition tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0];
         AVMutableVideoCompositionLayerInstruction* layerInstruction = [AVMutableVideoCompositionLayerInstruction videoCompositionLayerInstructionWithAssetTrack:videoTrack];
+
+        //Orientation code
+        UIImageOrientation videoAssetOrientation_  = UIImageOrientationUp;
+        BOOL isVideoAssetPortrait_  = NO;
+        CGAffineTransform videoTransform = videoTrack.preferredTransform;
+        if (videoTransform.a == 0 && videoTransform.b == 1.0 && videoTransform.c == -1.0 && videoTransform.d == 0) {
+            videoAssetOrientation_ = UIImageOrientationRight;
+            isVideoAssetPortrait_ = YES;
+        }
+        if (videoTransform.a == 0 && videoTransform.b == -1.0 && videoTransform.c == 1.0 && videoTransform.d == 0) {
+            videoAssetOrientation_ =  UIImageOrientationLeft;
+            isVideoAssetPortrait_ = YES;
+        }
+        if (videoTransform.a == 1.0 && videoTransform.b == 0 && videoTransform.c == 0 && videoTransform.d == 1.0) {
+            videoAssetOrientation_ =  UIImageOrientationUp;
+        }
+        if (videoTransform.a == -1.0 && videoTransform.b == 0 && videoTransform.c == 0 && videoTransform.d == -1.0) {
+            videoAssetOrientation_ = UIImageOrientationDown;
+        }
+        [layerInstruction setTransform:videoTrack.preferredTransform atTime:kCMTimeZero];
+        [layerInstruction setOpacity:0.0 atTime:mixComposition.duration];
+
+        // 3.3 - Add instructions
+
         instruction.layerInstructions = [NSArray arrayWithObject:layerInstruction];
         videoComp.instructions = [NSArray arrayWithObject: instruction];
+
+        //PS
+        CGSize naturalSize;
+        if(isVideoAssetPortrait_){
+            naturalSize = CGSizeMake(videoTrack.naturalSize.height, videoTrack.naturalSize.width);
+        } else {
+            naturalSize = videoTrack.naturalSize;
+        }
+
+        float renderWidth, renderHeight;
+        renderWidth = naturalSize.width;
+        renderHeight = naturalSize.height;
+        videoComp.renderSize = CGSizeMake(renderWidth, renderHeight);
+        videoComp.instructions = [NSArray arrayWithObject:instruction];
+        videoComp.frameDuration = CMTimeMake(1, 30);
+
+        videoSize =  naturalSize;
+        parentLayer.frame = CGRectMake(0, 0, videoSize.width, videoSize.height);
+        videoLayer.frame = CGRectMake(0, 0, videoSize.width, videoSize.height);
+        //PS END
+
         
         AVAssetExportSession *assetExport = [[AVAssetExportSession alloc] initWithAsset:mixComposition presetName:AVAssetExportPresetHighestQuality];//AVAssetExportPresetPassthrough
         assetExport.videoComposition = videoComp;
@@ -112,7 +160,18 @@
                                                         [NSString stringWithFormat: @"{\"done\": true, \"outputUrl\": \"%@\"}", assetExport.outputURL]];
                         [pluginResult setKeepCallbackAsBool:NO];
                         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+                        NSLog(@"Logging: %@", pluginResult);
                     });
+
+                    [self.commandDelegate runInBackground:^{
+                        // self.callbackId = command.callbackId;
+
+                        NSString *videoAbsolutePath = VideoName;
+
+                        NSLog(@"Video absolute path: %@", videoAbsolutePath);
+
+                      UISaveVideoAtPathToSavedPhotosAlbum(videoAbsolutePath,self,nil,nil);
+                    }];
                 }
                 else if (AVAssetExportSessionStatusFailed == assetExport.status)
                 {
